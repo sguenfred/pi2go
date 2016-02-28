@@ -8,7 +8,7 @@
 import pi2go, time
 
 # Reading a button press from your keyboard, don't worry about this too much!
-import sys
+import sys, getopt
 import tty
 import termios
 import curses
@@ -19,19 +19,6 @@ stdscr = curses.initscr()
 from _socket import *
 import thread
 
-def displayStatus():
-    left=pi2go.irLeft()
-    right=pi2go.irRight()
-    leftLine=pi2go.irLeftLine()
-    rightLine=pi2go.irRightLine()
-    distance=pi2go.getDistance()
-    myscreen.addstr(2,40,"sonar          "+str(distance))
-    myscreen.addstr(4,40,"left sensor    "+str(left))
-    myscreen.addstr(5,40,"right sensor   "+str(right))
-    myscreen.addstr(6,40,"leftIR sensor  "+str(leftLine))
-    myscreen.addstr(7,40,"rightRI sensor "+str(rightLine))
-    myscreen.refresh()
-        
 
 class robotMove():
     
@@ -105,12 +92,19 @@ class myserver():
             if retour in switcher.keys():
                 switcher[retour]()
 
+    def displayStatus(self):
+        left=pi2go.irLeft()
+        right=pi2go.irRight()
+        leftLine=pi2go.irLeftLine()
+        rightLine=pi2go.irRightLine()
+        distance=pi2go.getDistance()
+        myscreen.addstr(2,30,"sonar "+str(distance))
+        myscreen.addstr(3,30,"left sensor "+str(left))
+        myscreen.addstr(4,30,"right sensor "+str(right))
+        myscreen.addstr(5,30,"leftIR sensor "+str(leftLine))
+        myscreen.addstr(6,30,"rightIR sensor "+str(rightLine))
+        myscreen.refresh()
 
-    def displayStatus():
-        myscreen.addstr(40,2,"ligne 1")
-        myscreen.addstr(40,3,"ligne 2")
-                    
-    
     def start(self):
         self.socket=socket(AF_INET,SOCK_STREAM)
         self.addr=(self.address,self.port)
@@ -118,8 +112,8 @@ class myserver():
         self.socket.listen(5)
         self.id=thread.start_new_thread(self.listen,())
         while True:
-	    time.sleep(1)
-	    displayStatus()
+	        time.sleep(1)
+	        self.displayStatus()
         #test=raw_input("q for quit")
         #if test=="q":
         #    return()
@@ -129,20 +123,32 @@ class myserver():
     def stopserver(self):
         self.Bstop=True
         
-        
-hostname=gethostname()
-print "Launched on "+hostname
-if hostname=="majordomo":
-    pi2go.init()
+def main():
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"drs")
+    except getopt.GetoptError as err:
+        print str(err)
+        sys.exit(1)
+    for o, a in opts:
+        if o == "-d":
+            debug=True
+        if o == "-r":
+            robotMode=True
+    hostname=gethostname()
+    print "Launched on "+hostname
+    if robotMode:
+        pi2go.init()
+        c=myserver(name="robot")
+    else:
+        c=myserver(name="test")
+        print "lauching in test mode"
+    c.start()
+    myscreen.getch()
+    pi2go.cleanup()
+    curses.endwin()
+
+if __name__ == "__main__":
     myscreen=curses.initscr()
     myscreen.border(1)
     myscreen.refresh()
-    myscreen.addstr(2,2,"ServerRobot on %s" % (hostname))
-    c=myserver(name="robot")
-else:
-    c=myserver(name="test")
-    print "lauching in test mode"
-c.start()
-myscreen.getch()
-pi2go.cleanup()
-curses.endwin()
+    main()
